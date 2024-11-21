@@ -15,82 +15,101 @@ const createOrder = async (req, res) => {
       totalAmount,
       orderDate,
       orderUpdateDate,
-      paymentId,
-      payerId,
       cartId,
     } = req.body;
 
-    const create_payment_json = {
-      intent: "sale",
-      payer: {
-        payment_method: "paypal",
-      },
-      redirect_urls: {
-        return_url: "http://localhost:5173/shop/paypal-return",
-        cancel_url: "http://localhost:5173/shop/paypal-cancel",
-      },
-      transactions: [
-        {
-          item_list: {
-            items: cartItems.map((item) => ({
-              name: item.title,
-              sku: item.productId,
-              price: item.price.toFixed(2),
-              currency: "USD",
-              quantity: item.quantity,
-            })),
-          },
-          amount: {
-            currency: "USD",
-            total: totalAmount.toFixed(2),
-          },
-          description: "description",
+    if (paymentMethod === "paypal") {
+      const create_payment_json = {
+        intent: "sale",
+        payer: {
+          payment_method: "paypal",
         },
-      ],
-    };
+        redirect_urls: {
+          return_url: "http://localhost:5173/shop/paypal-return",
+          cancel_url: "http://localhost:5173/shop/paypal-cancel",
+        },
+        transactions: [
+          {
+            item_list: {
+              items: cartItems.map((item) => ({
+                name: item.title,
+                sku: item.productId,
+                price: item.price.toFixed(2),
+                currency: "USD",
+                quantity: item.quantity,
+              })),
+            },
+            amount: {
+              currency: "USD",
+              total: totalAmount.toFixed(2),
+            },
+            description: "Order Payment",
+          },
+        ],
+      };
 
-    paypal.payment.create(create_payment_json, async (error, paymentInfo) => {
-      if (error) {
-        console.log(error);
+      paypal.payment.create(create_payment_json, async (error, paymentInfo) => {
+        if (error) {
+          console.log(error);
+          return res.status(500).json({
+            success: false,
+            message: "Error while creating PayPal payment",
+          });
+        } else {
+          const newlyCreatedOrder = new Order({
+            userId,
+            cartId,
+            cartItems,
+            addressInfo,
+            orderStatus: "pending",
+            paymentMethod,
+            paymentStatus,
+            totalAmount,
+            orderDate,
+            orderUpdateDate,
+          });
 
-        return res.status(500).json({
-          success: false,
-          message: "Error while creating paypal payment",
-        });
-      } else {
-        const newlyCreatedOrder = new Order({
-          userId,
-          cartId,
-          cartItems,
-          addressInfo,
-          orderStatus,
-          paymentMethod,
-          paymentStatus,
-          totalAmount,
-          orderDate,
-          orderUpdateDate,
-          paymentId,
-          payerId,
-        });
+          await newlyCreatedOrder.save();
 
-        await newlyCreatedOrder.save();
+          const approvalURL = paymentInfo.links.find(
+            (link) => link.rel === "approval_url"
+          ).href;
+console.log(approvalURL,"approvalurl")
+          return res.status(201).json({
+            success: true,
+            approvalURL,
+            orderId: newlyCreatedOrder._id,
+          });
+        }
+      });
+    } else if (paymentMethod === "COD") {
 
-        const approvalURL = paymentInfo.links.find(
-          (link) => link.rel === "approval_url"
-        ).href;
+      const newlyCreatedOrder = new Order({
+        userId,
+        cartId,
+        cartItems,
+        addressInfo,
+        orderStatus: "placed",
+        paymentMethod,
+        paymentStatus: "pending",
+        totalAmount,
+        orderDate,
+        orderUpdateDate,
+      });
 
-        res.status(201).json({
-          success: true,
-          approvalURL,
-          orderId: newlyCreatedOrder._id,
-        });
-      }
-    });
+      await newlyCreatedOrder.save();
+      await Cart.findByIdAndDelete(cartId);
+      res.status(201).json({
+        success: true,
+        message: "Order placed successfully with COD",
+        orderId: newlyCreatedOrder._id,
+      });
+    }
   } catch (e) {
     console.log(e);
     res.status(500).json({
       success: false,
-      message: "Some error occured!",
+      message: "An error occurred while creating the order",
     });
   }
 };
@@ -98,9 +117,7 @@ const createOrder = async (req, res) => {
 const capturePayment = async (req, res) => {
   try {
     const { paymentId, payerId, orderId } = req.body;
-
     let order = await Order.findById(orderId);
-
     if (!order) {
       return res.status(404).json({
         success: false,

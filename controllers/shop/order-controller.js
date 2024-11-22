@@ -17,7 +17,7 @@ const createOrder = async (req, res) => {
       orderUpdateDate,
       cartId,
     } = req.body;
-
+console.log(cartItems,"cartItems")
     if (paymentMethod === "paypal") {
       const create_payment_json = {
         intent: "sale",

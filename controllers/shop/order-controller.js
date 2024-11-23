@@ -240,9 +240,27 @@ const getOrderDetails = async (req, res) => {
   }
 };
 
+const cancelOrder = async (req,res) => {
+  try {
+    const { id } = req.params;
+    await Order.findByIdAndUpdate(id, { orderStatus: 'cancelled' });
+    res.status(200).json({
+      success: true,
+      message: 'Order cancelled',
+    });
+  } catch (e) {
+    console.log(e);
+    res.status(500).json({
+      success: false,
+      message: 'Some error occured!',
+    });
+  }
+};
+
 module.exports = {
   createOrder,
   capturePayment,
   getAllOrdersByUser,
   getOrderDetails,
+  cancelOrder,
 };

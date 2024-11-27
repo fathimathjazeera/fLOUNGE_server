@@ -24,8 +24,8 @@ const createOrder = async (req, res) => {
           payment_method: 'paypal',
         },
         redirect_urls: {
-          return_url: 'http://localhost:5173/shop/paypal-return',
-          cancel_url: 'http://localhost:5173/shop/paypal-cancel',
+          return_url: `${process.env.CLIENT_BASE_URL}/shop/paypal-return`,
+          cancel_url: `${process.env.CLIENT_BASE_URL}/shop/paypal-cancel`,
         },
         transactions: [
           {
@@ -46,7 +46,6 @@ const createOrder = async (req, res) => {
           },
         ],
       };
-
       paypal.payment.create(create_payment_json, async (error, paymentInfo) => {
         if (error) {
           console.log(error);
@@ -67,7 +66,6 @@ const createOrder = async (req, res) => {
             orderDate,
             orderUpdateDate,
           });
-          console.log(cartId, 'cartId from create order');
           await newlyCreatedOrder.save();
           if (productId) {
             console.log(productId, 'product from ');
@@ -109,8 +107,18 @@ const createOrder = async (req, res) => {
         orderDate,
         orderUpdateDate,
       });
-
       await newlyCreatedOrder.save();
+      for (let item of cartItems) {
+        let product = await Product.findById(item.productId);
+        if (!product) {
+          return res.status(404).json({
+            success: false,
+            message: `Not enough stock for this product ${product.title}`,
+          });
+        }
+        product.totalStock -= item.quantity;
+        await product.save();
+      }
       if (productId) {
         const cart = await Cart.findOne({
           userId: userId,
@@ -143,15 +151,21 @@ const createOrder = async (req, res) => {
 
 const capturePayment = async (req, res) => {
   try {
-    const { paymentId, payerId, orderId, productId, userId } = req.body;
+    const { paymentId, payerId, orderId } = req.body;
     let order = await Order.findById(orderId);
-    console.log(order, 'order');
+
+   console.log(order, 'order');  
+
+
+
+
     if (!order) {
       return res.status(404).json({
         success: false,
         message: 'Order can not be found',
       });
     }
+
     order.paymentStatus = 'paid';
     order.orderStatus = 'confirmed';
     order.paymentId = paymentId;
@@ -165,9 +179,7 @@ const capturePayment = async (req, res) => {
           message: `Not enough stock for this product ${product.title}`,
         });
       }
-
       product.totalStock -= item.quantity;
-
       await product.save();
     }
 
@@ -187,6 +199,11 @@ const capturePayment = async (req, res) => {
     });
   }
 };
+
+
+
+
+
 
 const getAllOrdersByUser = async (req, res) => {
   try {
@@ -240,7 +257,7 @@ const getOrderDetails = async (req, res) => {
   }
 };
 
-const cancelOrder = async (req,res) => {
+const cancelOrder = async (req, res) => {
   try {
     const { id } = req.params;
     await Order.findByIdAndUpdate(id, { orderStatus: 'cancelled' });
@@ -248,6 +265,24 @@ const cancelOrder = async (req,res) => {
       success: true,
       message: 'Order cancelled',
     });
+
+    let order = await Order.findById(id);
+
+    for (let item of order.cartItems) {
+      let product = await Product.findById(item.productId);
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: `Not enough stock for this product ${product.title}`,
+        });
+      }
+      console.log(`Restoring stock for product: ${product.title}`);
+      console.log(`Before: ${product.totalStock}`);
+      product.totalStock += item.quantity;
+
+     await product.save()
+      console.log(`After: ${product.totalStock}`);
+    }
   } catch (e) {
     console.log(e);
     res.status(500).json({

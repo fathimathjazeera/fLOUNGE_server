@@ -7,6 +7,8 @@ const addProductReview = async (req, res) => {
     const { productId, userId, userName, reviewMessage, reviewValue } =
       req.body;
 
+
+
     const order = await Order.findOne({
       userId,
       "cartItems.productId": productId,
@@ -65,7 +67,7 @@ const addProductReview = async (req, res) => {
 const getProductReviews = async (req, res) => {
   try {
     const { productId } = req.params;
-
+console.log(productId,"reviewId")
     const reviews = await ProductReview.find({ productId });
     res.status(200).json({
       success: true,

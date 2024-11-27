@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const connectDB = () => {
   return mongoose
     .connect(
-      'mongodb+srv://jezijazeera:b2NA3tFvP5N4JjFw@flounge.qgcxl.mongodb.net/'
+      process.env.MONGO_URL
     )
     .then(() => {
       console.log('MongoDB connected');

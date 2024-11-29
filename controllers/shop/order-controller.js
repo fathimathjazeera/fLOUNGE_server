@@ -153,24 +153,16 @@ const capturePayment = async (req, res) => {
   try {
     const { paymentId, payerId, orderId } = req.body;
     let order = await Order.findById(orderId);
-
-   console.log(order, 'order');  
-
-
-
-
     if (!order) {
       return res.status(404).json({
         success: false,
         message: 'Order can not be found',
       });
     }
-
     order.paymentStatus = 'paid';
     order.orderStatus = 'confirmed';
     order.paymentId = paymentId;
     order.payerId = payerId;
-
     for (let item of order.cartItems) {
       let product = await Product.findById(item.productId);
       if (!product) {
@@ -182,7 +174,6 @@ const capturePayment = async (req, res) => {
       product.totalStock -= item.quantity;
       await product.save();
     }
-
     const getCartId = order.cartId;
     await Cart.findByIdAndDelete(getCartId);
     await order.save();
@@ -200,11 +191,6 @@ const capturePayment = async (req, res) => {
   }
 };
 
-
-
-
-
-
 const getAllOrdersByUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -217,7 +203,6 @@ const getAllOrdersByUser = async (req, res) => {
         message: 'No orders found!',
       });
     }
-
     res.status(200).json({
       success: true,
       data: orders,
@@ -234,16 +219,13 @@ const getAllOrdersByUser = async (req, res) => {
 const getOrderDetails = async (req, res) => {
   try {
     const { id } = req.params;
-
     const order = await Order.findById(id);
-
     if (!order) {
       return res.status(404).json({
         success: false,
         message: 'Order not found!',
       });
     }
-
     res.status(200).json({
       success: true,
       data: order,
@@ -265,9 +247,7 @@ const cancelOrder = async (req, res) => {
       success: true,
       message: 'Order cancelled',
     });
-
     let order = await Order.findById(id);
-
     for (let item of order.cartItems) {
       let product = await Product.findById(item.productId);
       if (!product) {
@@ -279,8 +259,7 @@ const cancelOrder = async (req, res) => {
       console.log(`Restoring stock for product: ${product.title}`);
       console.log(`Before: ${product.totalStock}`);
       product.totalStock += item.quantity;
-
-     await product.save()
+      await product.save();
       console.log(`After: ${product.totalStock}`);
     }
   } catch (e) {

@@ -21,6 +21,7 @@ const createOrder = async (req, res) => {
       cartId,
       productId,
     } = req.body;
+    
     if (paymentMethod === 'paypal') {
       const create_payment_json = {
         intent: 'sale',
@@ -201,7 +202,7 @@ const capturePayment = async (req, res) => {
 const getAllOrdersByUser = async (req, res) => {
   try {
     const { userId } = req.params;
-
+console.log(userId,"userId from getorders")
     const orders = await Order.find({ userId });
 
     if (!orders.length) {
@@ -249,6 +250,7 @@ const getOrderDetails = async (req, res) => {
 const cancelOrder = async (req, res) => {
   try {
     const { id } = req.params;
+    
     await Order.findByIdAndUpdate(id, { orderStatus: 'cancelled' });
     res.status(200).json({
       success: true,
